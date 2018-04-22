@@ -1,0 +1,81 @@
+---
+title: "Molecular characterization of tumor type based on expression profile from NCI-60 cell lines"
+author: "Snehal Sambare & Ronak Shah"
+date: "First version 1 April 2018, revision of 9th April 2018"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r code block 1, message=FALSE, warning=FALSE}
+#Load libraries
+source("https://bioconductor.org/biocLite.R")
+library("cluster")
+library("factoextra")
+library("magrittr")
+library("rcellminer")
+library("rcellminerData")
+library("Biobase")
+library("preprocessCore")
+library("ggplot2")
+library("ggpubr")
+library("reshape2")
+library("gridExtra")
+library("cowplot")
+```
+
+```{r code block 2}
+  molData <- getMolDataMatrices()
+  expGenes <- removeMolDataType(rownames(molData[["exp"]]))
+  tdata<-molData[["exp"]]
+  dim(tdata)
+```
+
+There are 25040 genes and 60 celllines.
+
+Processing origingal data:
+```{r code block 3}
+  mtdata<-melt((tdata))
+  mtdataA <- within(mtdata, Var2<-data.frame(do.call('rbind', strsplit(as.character(Var2), ':', fixed=TRUE))))
+  #colnames(mtdataA)<-c("Genes","Cancer Type","Cell line","Expression")
+  ndata<-data.frame("Gene"=mtdataA$Var1,"CancerType"=mtdataA$Var2$X1,"CellLine"=mtdataA$Var2$X2,"Expression"=mtdataA$value)
+  #Before Scaling
+  p1 = ggplot(ndata,aes(CellLine,Expression)) + geom_boxplot(aes(colour = CancerType)) + coord_flip() + ylab("Expression values") + xlab("Cell Line") + scale_y_continuous(breaks = seq(-8,8,2), limits = c(-8,8)) + theme_pubclean() + facet_wrap(~CancerType,scales = "free_y") + ggtitle("Original:")
+  summary(ndata)
+  p1
+```
+
+Scaling the data:
+```{r code block 4}
+  scale_data <- scale(tdata)
+  mtdata<-melt((scale_data))
+  mtdataA <- within(mtdata, Var2<-data.frame(do.call('rbind', strsplit(as.character(Var2), ':', fixed=TRUE))))
+  #colnames(mtdataA)<-c("Genes","Cancer Type","Cell line","Expression")
+  sdata<-data.frame("Gene"=mtdataA$Var1,"CancerType"=mtdataA$Var2$X1,"CellLine"=mtdataA$Var2$X2,"Expression"=mtdataA$value)
+  #After Scaling
+  p2 = ggplot(sdata,aes(CellLine,Expression)) + geom_boxplot(aes(colour = CancerType)) + coord_flip() + ylab("Expression values") + xlab("Cell Line") + scale_y_continuous(breaks = seq(-8,8,2), limits = c(-8,8)) + theme_pubclean() + facet_wrap(~CancerType,scales = "free_y") + ggtitle("Scaling:")
+  summary(sdata)
+  p2
+```
+
+Quantile normalization:
+```{r code block 5}
+  qdata<-normalize.quantiles(tdata)
+  colnames(qdata)<-colnames(tdata)
+  rownames(qdata)<-rownames(tdata)
+  mtdata<-melt(qdata)
+  mtdataA <- within(mtdata, Var2<-data.frame(do.call('rbind', strsplit(as.character(Var2), ':', fixed=TRUE))))
+  #colnames(mtdataA)<-c("Genes","Cancer Type","Cell line","Expression")
+  qdata_A<-data.frame("Gene"=mtdataA$Var1,"CancerType"=mtdataA$Var2$X1,"CellLine"=mtdataA$Var2$X2,"Expression"=mtdataA$value)
+  p3 = ggplot(qdata_A,aes(CellLine,Expression)) + geom_boxplot(aes(colour = CancerType)) + coord_flip() + ylab("Expression values") + xlab("Cell Line") + scale_y_continuous(breaks = seq(-8,8,2), limits = c(-8,8)) + theme_pubclean() + facet_wrap(~CancerType,scales = "free_y") + ggtitle("Quantile-Quantile Normalization:")
+  summary(qdata_A)
+  p3
+
+```
+***
+***
